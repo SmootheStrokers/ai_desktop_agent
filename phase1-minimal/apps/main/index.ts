@@ -4,8 +4,9 @@ import { readFileSync, existsSync, statSync, writeFileSync, appendFileSync } fro
 import { execSync } from 'child_process';
 import { chromium, Browser, Page } from 'playwright';
 import { callOllama, callClaude, callOpenAI, saveApiKey } from './llm-providers';
-import { initializeTools, toolRegistry, setCurrentPage } from './tools';
+import { initializeTools, toolRegistry, setCurrentPage, setCurrentBrowser } from './tools';
 import { executeWithTools, formatToolHistory } from './tool-executor';
+import { registerMCPTools } from './tools';
 import { getProvider } from './llm-providers-enhanced';
 import { 
   getGlobalConversationStore, 
@@ -13,7 +14,10 @@ import {
   resetGlobalConversationStore,
   resetGlobalWorkingMemory
 } from './memory';
-import { pluginManager } from './plugins';
+import { PluginManager } from './plugins';
+
+// Create plugin manager with shared tool registry
+const pluginManager = new PluginManager(toolRegistry);
 
 let bubbleWindow: BrowserWindow | null = null;
 let panelWindow: BrowserWindow | null = null;
@@ -22,15 +26,32 @@ let page: Page | null = null;
 
 function createBubbleWindow() {
   const { width, height } = screen.getPrimaryDisplay().workAreaSize;
+  const bubbleSize = 80; // Increased size to accommodate the 72px bubble with some padding
   bubbleWindow = new BrowserWindow({
-    width: 64, height: 64, x: width - 80, y: height - 80,
+    width: bubbleSize, 
+    height: bubbleSize, 
+    x: width - bubbleSize - 20, // 20px margin from right edge
+    y: height - bubbleSize - 20, // 20px margin from bottom edge
     frame: false, alwaysOnTop: true, skipTaskbar: true, resizable: false,
+    transparent: true,
     webPreferences: {
-      nodeIntegration: false, contextIsolation: true,
-      preload: join(__dirname, '../preload/index.js')
+      nodeIntegration: false, 
+      contextIsolation: true,
+      preload: join(__dirname, '../preload/index.js'),
+      webSecurity: false, // Disable web security for local development
+      allowRunningInsecureContent: false
     }
   });
-  bubbleWindow.loadFile(join(__dirname, '../renderer/bubble.html'));
+  
+  const htmlPath = join(__dirname, '../renderer/bubble.html');
+  bubbleWindow.loadFile(htmlPath).catch(err => {
+    console.error('[Bubble] Failed to load:', err);
+    console.log('[Bubble] Retrying in 1 second...');
+    setTimeout(() => {
+      bubbleWindow?.loadFile(htmlPath);
+    }, 1000);
+  });
+  
   bubbleWindow.setMovable(true);
   bubbleWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'mouseDown') togglePanel();
@@ -46,11 +67,23 @@ function createPanelWindow() {
     width: 420, height: 600, x: width - 440, y: height - 620,
     frame: false, alwaysOnTop: true, skipTaskbar: true, resizable: false, show: false,
     webPreferences: {
-      nodeIntegration: false, contextIsolation: true,
-      preload: join(__dirname, '../preload/index.js')
+      nodeIntegration: false, 
+      contextIsolation: true,
+      preload: join(__dirname, '../preload/index.js'),
+      webSecurity: false, // Disable web security for local development
+      allowRunningInsecureContent: false
     }
   });
-  panelWindow.loadFile(join(__dirname, '../renderer/panel.html'));
+  
+  const htmlPath = join(__dirname, '../renderer/panel.html');
+  panelWindow.loadFile(htmlPath).catch(err => {
+    console.error('[Panel] Failed to load:', err);
+    console.log('[Panel] Retrying in 1 second...');
+    setTimeout(() => {
+      panelWindow?.loadFile(htmlPath);
+    }, 1000);
+  });
+  
   panelWindow.on('closed', () => { panelWindow = null; });
 }
 
@@ -85,7 +118,8 @@ async function launchBrowser() {
     browser = await chromium.launch({ headless: false });
     const context = await browser.newContext();
     page = await context.newPage();
-    // Update the browser tools with the current page
+    // Update the browser tools with the current page and browser
+    setCurrentBrowser(browser);
     setCurrentPage(page);
   }
 }
@@ -126,6 +160,7 @@ async function closeBrowserTool(): Promise<string> {
     if (browser) {
       await browser.close();
       browser = null; page = null;
+      setCurrentBrowser(null);
       setCurrentPage(null);
       return 'Browser closed';
     }
@@ -291,9 +326,25 @@ ipcMain.handle('chat:send-message', async (event, message: string) => {
 
     try {
       const llmProvider = getProvider(provider);
+      
+      // Get all available tools
+      const availableTools = toolRegistry.getAll();
+      console.log(`[DEBUG] Available tools count: ${availableTools.length}`);
+      console.log(`[DEBUG] Available tools:`, availableTools.map(t => t.name));
+      const toolList = availableTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n');
+      
+      const systemPrompt = `You are a helpful AI assistant with access to various tools. Use them when appropriate to help the user.
+
+Available Tools:
+${toolList}
+
+When the user asks "what tools do you have" or similar questions, list these specific tools above, not generic capabilities.
+When asked about weather, use the get_weather tool. When asked about GitHub, use the GitHub tools.
+When asked about system information or file operations, use the localops MCP tools.`;
+      
       const result = await executeWithTools(llmProvider, userMessage, {
         maxIterations: 5,
-        systemPrompt: 'You are a helpful AI assistant with access to various tools. Use them when appropriate to help the user. When asked about weather, use the get_weather tool. When asked about GitHub, use the GitHub tools.'
+        systemPrompt
       });
 
       if (result.success) {
@@ -348,10 +399,19 @@ ipcMain.handle('execute-with-tools', async (event, request: {
     const conversationStore = getGlobalConversationStore();
     const workingMemory = getGlobalWorkingMemory();
     
+    // Get all available tools
+    const availableTools = toolRegistry.getAll();
+    const toolList = availableTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n');
+    
     // Build system prompt with context
     const contextInfo = workingMemory.getContext();
     const systemPrompt = request.systemPrompt || 
-      `You are a helpful AI assistant with access to various tools. ${contextInfo ? '\n\n' + contextInfo : ''}`;
+      `You are a helpful AI assistant with access to various tools. ${contextInfo ? '\n\n' + contextInfo : ''}
+
+Available Tools:
+${toolList}
+
+When the user asks "what tools do you have" or similar questions, list these specific tools above, not generic capabilities.`;
     
     // Execute with tools
     const result = await executeWithTools(provider, request.message, {
@@ -523,6 +583,117 @@ ipcMain.handle('memory:get-tasks', async () => {
   return memory.getAllTasks();
 });
 
+// ============================================================================
+// MCP IPC Handlers
+// ============================================================================
+
+import { mcpClientManager, MCPServerConfig } from './mcp';
+
+/**
+ * Get list of all configured MCP servers with their status
+ */
+ipcMain.handle('mcp:get-servers', async () => {
+  try {
+    const status = mcpClientManager.getStatus();
+    return { success: true, data: status };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error getting servers:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Connect to an MCP server
+ */
+ipcMain.handle('mcp:connect', async (_, config: MCPServerConfig) => {
+  try {
+    await mcpClientManager.connect(config);
+    // Re-register MCP tools after connecting
+    await registerMCPTools();
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error connecting to server:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Disconnect from an MCP server
+ */
+ipcMain.handle('mcp:disconnect', async (_, serverName: string) => {
+  try {
+    await mcpClientManager.disconnect(serverName);
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error disconnecting from server:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Get tools from a specific server or all servers
+ */
+ipcMain.handle('mcp:get-tools', async (_, serverName?: string) => {
+  try {
+    const tools = mcpClientManager.getTools(serverName);
+    return { success: true, data: tools };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error getting tools:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Call a tool on an MCP server
+ */
+ipcMain.handle('mcp:call-tool', async (_, serverName: string, toolName: string, args: any) => {
+  try {
+    const result = await mcpClientManager.callTool(serverName, toolName, args);
+    return { success: true, data: result };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error calling tool:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Get list of connected server names
+ */
+ipcMain.handle('mcp:get-connected', async () => {
+  try {
+    const connected = mcpClientManager.getConnectedServers();
+    return { success: true, data: connected };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error getting connected servers:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+/**
+ * Check if a specific server is connected
+ */
+ipcMain.handle('mcp:is-connected', async (_, serverName: string) => {
+  try {
+    const isConnected = mcpClientManager.isConnected(serverName);
+    return { success: true, data: isConnected };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[MCP] Error checking connection:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
+});
+
+// Configure cache directory to avoid access denied errors
+app.setPath('userData', join(app.getPath('appData'), 'phase1-minimal-agent'));
+app.setPath('cache', join(app.getPath('userData'), 'cache'));
+app.setPath('temp', join(app.getPath('userData'), 'temp'));
+
 app.whenReady().then(async () => {
   // Initialize the tool system
   initializeTools();
@@ -536,6 +707,39 @@ app.whenReady().then(async () => {
   console.log('  - Conversation memory ready');
   console.log('  - Working memory ready');
   console.log('  - Plugin manager ready');
+  
+  // Auto-connect to MCP servers
+  console.log('[MCP] Auto-connecting to enabled servers...');
+  
+  // Define default MCP servers
+  const defaultServers: MCPServerConfig[] = [
+    {
+      name: 'localops',
+      command: ['python', join(__dirname, '../../mcp/localops_server.py')],
+      enabled: true,
+      description: 'Local filesystem and system operations'
+    },
+    {
+      name: 'websearch',
+      command: ['python', join(__dirname, '../../mcp/websearch_server.py')],
+      enabled: false, // Disabled by default
+      description: 'Web search and URL fetching'
+    }
+  ];
+
+  for (const config of defaultServers) {
+    if (config.enabled) {
+      try {
+        await mcpClientManager.connect(config);
+        console.log(`[MCP] Auto-connected to ${config.name}`);
+      } catch (error) {
+        console.error(`[MCP] Failed to auto-connect to ${config.name}:`, error);
+      }
+    }
+  }
+
+  // Register MCP tools with the tool registry
+  await registerMCPTools();
   
   createBubbleWindow();
   createPanelWindow();

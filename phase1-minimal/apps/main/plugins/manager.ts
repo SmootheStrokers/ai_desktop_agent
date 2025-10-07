@@ -7,16 +7,23 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { app } from 'electron';
 import { Plugin, PluginInfo, PluginManifest, PluginError } from './types';
-import { toolRegistry } from '../tools/registry';
+// import { toolRegistry } from '../tools/registry';
 
 export class PluginManager {
   private plugins: Map<string, Plugin> = new Map();
   private pluginDir: string;
   private enabledPlugins: Set<string> = new Set();
   private errors: PluginError[] = [];
+  private toolRegistry: any;
 
-  constructor() {
-    this.pluginDir = path.join(app.getPath('userData'), 'plugins');
+  constructor(toolRegistry: any) {
+    // Use local plugins directory for development
+    this.pluginDir = path.join(__dirname, '../../../plugins');
+    this.toolRegistry = toolRegistry;
+    
+    if (!this.toolRegistry) {
+      throw new Error('PluginManager requires a toolRegistry instance');
+    }
   }
 
   /**
@@ -72,7 +79,7 @@ export class PluginManager {
       // Register plugin tools
       if (plugin.tools) {
         plugin.tools.forEach(tool => {
-          toolRegistry.register(tool);
+          this.toolRegistry.register(tool);
           console.log(`Registered tool: ${tool.name} from plugin: ${plugin.name}`);
         });
       }
@@ -123,38 +130,58 @@ export class PluginManager {
   async discoverPlugins(): Promise<PluginInfo[]> {
     const pluginInfos: PluginInfo[] = [];
 
+    // Check both local plugins directory and userData plugins directory
+    const pluginDirs = [
+      this.pluginDir // Local plugins directory
+    ];
+    
+    // Add userData plugins directory if app is available (running in Electron)
     try {
-      const pluginDirs = await fs.readdir(this.pluginDir);
-      
-      for (const dir of pluginDirs) {
-        const pluginPath = path.join(this.pluginDir, dir);
-        const stat = await fs.stat(pluginPath);
-        
-        if (stat.isDirectory()) {
-          try {
-            const manifestPath = path.join(pluginPath, 'package.json');
-            const manifestContent = await fs.readFile(manifestPath, 'utf-8');
-            const manifest: PluginManifest = JSON.parse(manifestContent);
-
-            const pluginInfo: PluginInfo = {
-              name: manifest.name,
-              version: manifest.version,
-              description: manifest.description,
-              author: manifest.author,
-              installed: true,
-              enabled: true, // Enable plugins by default
-              path: pluginPath,
-              manifest
-            };
-
-            pluginInfos.push(pluginInfo);
-          } catch (error) {
-            console.error(`Failed to read manifest for plugin ${dir}:`, error);
-          }
-        }
+      if (app && app.getPath) {
+        pluginDirs.push(path.join(app.getPath('userData'), 'plugins'));
       }
     } catch (error) {
-      console.error('Failed to discover plugins:', error);
+      // app not available, skip userData directory
+    }
+
+    for (const pluginDir of pluginDirs) {
+      try {
+        if (!await fs.access(pluginDir).then(() => true).catch(() => false)) {
+          continue; // Skip if directory doesn't exist
+        }
+
+        const dirs = await fs.readdir(pluginDir);
+        
+        for (const dir of dirs) {
+          const pluginPath = path.join(pluginDir, dir);
+          const stat = await fs.stat(pluginPath);
+          
+          if (stat.isDirectory()) {
+            try {
+              const manifestPath = path.join(pluginPath, 'package.json');
+              const manifestContent = await fs.readFile(manifestPath, 'utf-8');
+              const manifest: PluginManifest = JSON.parse(manifestContent);
+
+              const pluginInfo: PluginInfo = {
+                name: manifest.name,
+                version: manifest.version,
+                description: manifest.description,
+                author: manifest.author,
+                installed: true,
+                enabled: true, // Enable plugins by default
+                path: pluginPath,
+                manifest
+              };
+
+              pluginInfos.push(pluginInfo);
+            } catch (error) {
+              console.error(`Failed to read manifest for plugin ${dir}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to discover plugins in ${pluginDir}:`, error);
+      }
     }
 
     return pluginInfos;
@@ -231,6 +258,3 @@ export class PluginManager {
     );
   }
 }
-
-// Global instance
-export const pluginManager = new PluginManager();

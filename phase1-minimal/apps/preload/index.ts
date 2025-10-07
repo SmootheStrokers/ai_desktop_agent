@@ -56,5 +56,44 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getConversationStats: () => ipcRenderer.invoke('conversation:get-stats'),
   clearConversation: () => ipcRenderer.invoke('conversation:clear'),
   searchConversation: (query: string) => ipcRenderer.invoke('conversation:search', query),
-  exportConversation: () => ipcRenderer.invoke('conversation:export')
+  exportConversation: () => ipcRenderer.invoke('conversation:export'),
+
+  // MCP API
+  mcp: {
+    /**
+     * Get list of all configured MCP servers with their status
+     */
+    getServers: () => ipcRenderer.invoke('mcp:get-servers'),
+
+    /**
+     * Connect to an MCP server
+     */
+    connect: (config: any) => ipcRenderer.invoke('mcp:connect', config),
+
+    /**
+     * Disconnect from an MCP server
+     */
+    disconnect: (serverName: string) => ipcRenderer.invoke('mcp:disconnect', serverName),
+
+    /**
+     * Get tools from a specific server or all servers
+     */
+    getTools: (serverName?: string) => ipcRenderer.invoke('mcp:get-tools', serverName),
+
+    /**
+     * Call a tool on an MCP server
+     */
+    callTool: (serverName: string, toolName: string, args: any) => 
+      ipcRenderer.invoke('mcp:call-tool', serverName, toolName, args),
+
+    /**
+     * Get list of connected server names
+     */
+    getConnected: () => ipcRenderer.invoke('mcp:get-connected'),
+
+    /**
+     * Check if a specific server is connected
+     */
+    isConnected: (serverName: string) => ipcRenderer.invoke('mcp:is-connected', serverName),
+  }
 });

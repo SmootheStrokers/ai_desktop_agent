@@ -15,28 +15,48 @@ interface PluginCardProps {
 
 const PluginCard: React.FC<PluginCardProps> = ({ plugin, onInstall, onUninstall, onToggle }) => {
   return (
-    <div className="plugin-card bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:shadow-lg transition-shadow">
-      <div className="flex justify-between items-start mb-4">
+    <div style={{
+      background: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+      padding: '20px',
+      border: '1px solid #e5e7eb'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">{plugin.name}</h3>
-          <p className="text-sm text-gray-600">v{plugin.version}</p>
+          <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0 0 4px 0' }}>{plugin.name}</h3>
+          <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>v{plugin.version}</p>
         </div>
-        <div className="flex space-x-2">
+        <div style={{ display: 'flex', gap: '8px' }}>
           {plugin.installed ? (
             <button
               onClick={() => onToggle(plugin)}
-              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                plugin.enabled
-                  ? 'bg-green-100 text-green-800'
-                  : 'bg-gray-100 text-gray-800'
-              }`}
+              style={{
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '500',
+                border: 'none',
+                cursor: 'pointer',
+                background: plugin.enabled ? '#d1fae5' : '#f3f4f6',
+                color: plugin.enabled ? '#065f46' : '#374151'
+              }}
             >
               {plugin.enabled ? 'Enabled' : 'Disabled'}
             </button>
           ) : (
             <button
               onClick={() => onInstall(plugin)}
-              className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium hover:bg-blue-200 transition-colors"
+              style={{
+                padding: '4px 12px',
+                background: '#dbeafe',
+                color: '#1e40af',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: '500',
+                border: 'none',
+                cursor: 'pointer'
+              }}
             >
               Install
             </button>
@@ -44,14 +64,20 @@ const PluginCard: React.FC<PluginCardProps> = ({ plugin, onInstall, onUninstall,
         </div>
       </div>
       
-      <p className="text-gray-700 mb-4">{plugin.description}</p>
+      <p style={{ color: '#374151', marginBottom: '16px' }}>{plugin.description}</p>
       
-      <div className="flex justify-between items-center">
-        <span className="text-sm text-gray-500">by {plugin.author}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '14px', color: '#6b7280' }}>by {plugin.author}</span>
         {plugin.installed && (
           <button
             onClick={() => onUninstall(plugin)}
-            className="text-sm text-red-600 hover:text-red-800 transition-colors"
+            style={{
+              fontSize: '14px',
+              color: '#dc2626',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer'
+            }}
           >
             Uninstall
           </button>
@@ -181,37 +207,86 @@ export const PluginMarketplace: React.FC<PluginMarketplaceProps> = ({ onClose })
   });
 
   return (
-    <div className="plugin-marketplace fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '12px',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)',
+        maxWidth: '900px',
+        width: '90%',
+        maxHeight: '80vh',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Plugin Marketplace</h2>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '20px',
+          borderBottom: '1px solid #e5e7eb'
+        }}>
+          <h2 style={{ margin: 0, fontSize: '24px', fontWeight: '700', color: '#111827' }}>Plugin Marketplace</h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: '#9ca3af',
+              padding: '4px',
+              fontSize: '24px',
+              lineHeight: 1
+            }}
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         {/* Search and Filter */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex space-x-4">
-            <div className="flex-1">
+        <div style={{ padding: '20px', borderBottom: '1px solid #e5e7eb' }}>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <div style={{ flex: 1 }}>
               <input
                 type="text"
                 placeholder="Search plugins..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{
+                  width: '100%',
+                  padding: '8px 16px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
               />
             </div>
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value as any)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              style={{
+                padding: '8px 16px',
+                border: '1px solid #d1d5db',
+                borderRadius: '8px',
+                fontSize: '14px',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
             >
               <option value="all">All Plugins</option>
               <option value="installed">Installed</option>
@@ -221,18 +296,17 @@ export const PluginMarketplace: React.FC<PluginMarketplaceProps> = ({ onClose })
         </div>
 
         {/* Plugin Grid */}
-        <div className="p-6 overflow-y-auto max-h-[calc(80vh-200px)]">
+        <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
           {loading ? (
-            <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-3 text-gray-600">Loading plugins...</span>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '48px 0' }}>
+              <span style={{ color: '#6b7280' }}>Loading plugins...</span>
             </div>
           ) : filteredPlugins.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-gray-500">No plugins found matching your criteria.</p>
+            <div style={{ textAlign: 'center', padding: '48px 0' }}>
+              <p style={{ color: '#6b7280' }}>No plugins found matching your criteria.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
               {filteredPlugins.map(plugin => (
                 <PluginCard
                   key={plugin.name}

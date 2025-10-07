@@ -2,10 +2,53 @@ import { Page } from 'playwright';
 import { Tool } from './types';
 
 let currentPage: Page | null = null;
+let currentBrowser: any = null;
 
 export function setCurrentPage(page: Page | null) {
   currentPage = page;
 }
+
+export function setCurrentBrowser(browser: any) {
+  currentBrowser = browser;
+}
+
+export const browserLaunchTool: Tool = {
+  name: 'browser_launch',
+  description: 'Launch a browser instance',
+  parameters: {
+    type: 'object',
+    properties: {
+      headless: {
+        type: 'boolean',
+        description: 'Whether to run in headless mode',
+        default: false
+      }
+    },
+    required: []
+  },
+  handler: async ({ headless = false }) => {
+    try {
+      const { chromium } = await import('playwright');
+      const browser = await chromium.launch({ headless });
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      
+      setCurrentBrowser(browser);
+      setCurrentPage(page);
+      
+      return {
+        success: true,
+        data: { headless },
+        message: `Browser launched successfully (headless: ${headless})`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to launch browser'
+      };
+    }
+  }
+};
 
 export const browserNavigateTool: Tool = {
   name: 'browser_navigate',
@@ -359,7 +402,9 @@ export const browserEvaluateTool: Tool = {
     try {
       const result = await currentPage.evaluate((codeToRun) => {
         try {
-          return { success: true, result: eval(codeToRun) };
+          // Use Function constructor instead of direct eval for better bundler compatibility
+          const func = new Function('return ' + codeToRun);
+          return { success: true, result: func() };
         } catch (error) {
           return { success: false, error: String(error) };
         }
