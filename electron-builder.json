@@ -1,0 +1,29 @@
+{
+  "appId": "com.yourcompany.desktop-agent",
+  "productName": "Desktop Agent",
+  "directories": {
+    "output": "dist-installer"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": ["nsis"],
+    "icon": "resources/icons/icon.ico"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  },
+  "mac": {
+    "target": ["dmg"],
+    "icon": "resources/icons/icon.icns"
+  },
+  "linux": {
+    "target": ["AppImage", "deb"],
+    "icon": "resources/icons/icon.png"
+  }
+}

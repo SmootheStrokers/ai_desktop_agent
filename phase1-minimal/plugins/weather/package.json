@@ -1,0 +1,14 @@
+{
+  "name": "weather",
+  "version": "1.0.0",
+  "description": "Get weather information for any location",
+  "author": "LocalDev Team",
+  "main": "index.js",
+  "dependencies": {
+    "node-fetch": "^3.3.0"
+  },
+  "permissions": [
+    "network",
+    "api"
+  ]
+}
