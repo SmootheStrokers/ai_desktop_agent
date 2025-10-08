@@ -1,10 +1,13 @@
 /**
- * Enhanced LLM Providers with Tool Calling Support
+ * Enhanced LLM Providers with Tool Calling Support and Streaming
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { LLMProvider, LLMResponse, Message } from './tool-executor';
+
+// Streaming callback type
+export type StreamCallback = (chunk: string) => void;
 
 interface Config {
   claudeApiKey?: string;
@@ -44,7 +47,7 @@ export function saveApiKey(provider: 'claude' | 'openai', key: string): string {
 }
 
 /**
- * Claude Provider with Tool Support
+ * Claude Provider with Tool Support and Streaming
  */
 export class ClaudeProvider implements LLMProvider {
   name = 'claude';
@@ -161,10 +164,100 @@ export class ClaudeProvider implements LLMProvider {
       content: textContent?.text || ''
     };
   }
+
+  /**
+   * Streaming chat method for real-time responses
+   */
+  async chatStream(messages: Message[], onChunk: StreamCallback, tools?: any[]): Promise<LLMResponse> {
+    const config = loadConfig();
+    if (!config.claudeApiKey) {
+      throw new Error('Claude API key not set. Use: setkey claude YOUR_KEY');
+    }
+
+    const claudeMessages = this.convertMessages(messages);
+    const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+
+    const requestBody: any = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      messages: claudeMessages,
+      stream: true
+    };
+
+    if (systemMessage) {
+      requestBody.system = systemMessage;
+    }
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools.map(tool => ({
+        name: tool.name,
+        description: tool.description,
+        input_schema: tool.parameters
+      }));
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': config.claudeApiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Claude API error: ${response.status} - ${error}`);
+    }
+
+    let fullContent = '';
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data:'));
+
+        for (const line of lines) {
+          const data = line.replace('data:', '').trim();
+          if (data === '[DONE]') break;
+          
+          try {
+            const parsed = JSON.parse(data);
+            
+            // Handle content delta
+            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+              const textChunk = parsed.delta.text;
+              fullContent += textChunk;
+              onChunk(textChunk);
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return {
+      type: 'text',
+      content: fullContent
+    };
+  }
 }
 
 /**
- * OpenAI Provider with Tool Support
+ * OpenAI Provider with Tool Support and Streaming
  */
 export class OpenAIProvider implements LLMProvider {
   name = 'openai';
@@ -265,6 +358,92 @@ export class OpenAIProvider implements LLMProvider {
     return {
       type: 'text',
       content: message.content || ''
+    };
+  }
+
+  /**
+   * Streaming chat method for real-time responses
+   */
+  async chatStream(messages: Message[], onChunk: StreamCallback, tools?: any[]): Promise<LLMResponse> {
+    const config = loadConfig();
+    if (!config.openaiApiKey) {
+      throw new Error('OpenAI API key not set. Use: setkey openai YOUR_KEY');
+    }
+
+    const openaiMessages = this.convertMessages(messages);
+
+    const requestBody: any = {
+      model: 'gpt-4o',
+      messages: openaiMessages,
+      stream: true
+    };
+
+    if (tools && tools.length > 0) {
+      requestBody.tools = tools.map(tool => ({
+        type: 'function',
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.parameters
+        }
+      }));
+    }
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.openaiApiKey}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${response.status} - ${error}`);
+    }
+
+    let fullContent = '';
+    const reader = response.body?.getReader();
+    const decoder = new TextDecoder();
+
+    if (!reader) {
+      throw new Error('Response body is not readable');
+    }
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data:'));
+
+        for (const line of lines) {
+          const data = line.replace('data:', '').trim();
+          if (data === '[DONE]') break;
+          
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta;
+            
+            if (delta?.content) {
+              const textChunk = delta.content;
+              fullContent += textChunk;
+              onChunk(textChunk);
+            }
+          } catch (e) {
+            // Skip invalid JSON
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return {
+      type: 'text',
+      content: fullContent
     };
   }
 }

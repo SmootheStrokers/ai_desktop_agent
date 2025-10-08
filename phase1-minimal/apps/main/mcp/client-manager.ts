@@ -190,7 +190,7 @@ export class MCPClientManager {
       const tools: MCPTool[] = response.tools.map(tool => ({
         serverName,
         toolName: tool.name,
-        fullName: `${serverName}:${tool.name}`,
+        fullName: `${serverName}_${tool.name}`, // Use underscore instead of colon for Claude API compatibility
         description: tool.description || '',
         inputSchema: tool.inputSchema
       }));

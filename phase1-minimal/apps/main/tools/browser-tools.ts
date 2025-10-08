@@ -59,11 +59,22 @@ export const browserNavigateTool: Tool = {
       url: {
         type: 'string',
         description: 'The URL to navigate to'
+      },
+      timeout: {
+        type: 'number',
+        description: 'Navigation timeout in milliseconds',
+        default: 120000
+      },
+      waitUntil: {
+        type: 'string',
+        description: 'When to consider navigation succeeded: load, domcontentloaded, networkidle, commit',
+        enum: ['load', 'domcontentloaded', 'networkidle', 'commit'],
+        default: 'load'
       }
     },
     required: ['url']
   },
-  handler: async ({ url }) => {
+  handler: async ({ url, timeout = 120000, waitUntil = 'load' }) => {
     if (!currentPage) {
       return {
         success: false,
@@ -72,7 +83,11 @@ export const browserNavigateTool: Tool = {
     }
 
     try {
-      await currentPage.goto(url, { waitUntil: 'networkidle' });
+      // Use a more lenient wait condition by default (load instead of networkidle)
+      await currentPage.goto(url, { 
+        waitUntil: waitUntil as any,
+        timeout 
+      });
       const title = await currentPage.title();
       
       return {

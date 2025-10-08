@@ -1,9 +1,10 @@
 # Phase 1 - Minimal AI Desktop Agent
 
-A desktop AI assistant built with Electron, featuring MCP (Model Context Protocol) integration, plugin system, and comprehensive tool support.
+A desktop AI assistant built with Electron, featuring MCP (Model Context Protocol) integration, plugin system, and comprehensive tool support with an enhanced user experience.
 
 ## Features
 
+### Core Features
 - **Multi-LLM Support**: Claude, OpenAI, and Ollama
 - **MCP Integration**: Connect to external MCP servers for extended functionality
 - **Plugin System**: Load and manage custom plugins
@@ -11,7 +12,15 @@ A desktop AI assistant built with Electron, featuring MCP (Model Context Protoco
 - **File Operations**: Read, write, and manage files
 - **System Tools**: Shell execution and clipboard access
 - **Memory Management**: Conversation history and working memory
-- **Modern UI**: React-based interface with dark mode support
+
+### ✨ Phase 7: Enhanced UI & UX
+- **Streaming Responses**: Real-time character-by-character AI responses
+- **Visual Tool Feedback**: Beautiful animated tool execution status
+- **Chat History Sidebar**: Searchable conversation history with filters
+- **Enhanced Settings**: Multi-tab settings with theme control
+- **Keyboard Shortcuts**: Power-user navigation (Ctrl+K, Ctrl+H, Ctrl+,)
+- **Notification System**: Elegant toast notifications
+- **Modern UI**: React-based interface with full dark mode support
 
 ## Setup
 
@@ -75,9 +84,19 @@ To enable a server, modify the configuration in `apps/main/index.ts`.
 ### Chat Interface
 
 - Type messages to interact with the AI assistant
+- Watch responses stream in real-time (Claude & OpenAI)
 - Use `/claude <message>` to force Claude provider
 - Use `/gpt <message>` to force OpenAI provider
-- Default provider is Ollama (if running locally)
+- Default provider can be set in Settings
+
+### Keyboard Shortcuts
+
+- `Ctrl/Cmd + K` - Focus chat input
+- `Ctrl/Cmd + H` - Toggle chat history sidebar
+- `Ctrl/Cmd + ,` - Open settings
+- `Escape` - Close all modals
+- `Enter` - Send message
+- `Shift + Enter` - New line in message
 
 ### Tools
 
@@ -93,6 +112,22 @@ The assistant has access to various tools:
 - Click the "Plugins" button to open the plugin marketplace
 - Install, enable, or disable plugins
 - Plugins can provide additional tools and functionality
+
+### Settings & Customization
+
+- Access settings with `Ctrl+,` or the settings button
+- **General**: Choose AI provider, configure notifications
+- **Appearance**: Select theme (Light/Dark/System)
+- **MCP Servers**: Manage MCP connections
+- **Advanced**: Configure tool execution parameters
+
+### Chat History
+
+- Access history with `Ctrl+H` or the history button
+- Search through all conversations
+- Filter by role (user/assistant/all)
+- Export conversations to JSON
+- View statistics (messages, tokens)
 
 ## Development
 
@@ -134,6 +169,13 @@ npm run dev
 2. Add a `package.json` with plugin metadata
 3. Implement the plugin interface from `apps/main/plugins/types.ts`
 4. The plugin will be automatically discovered and loaded
+
+## Phase 7 Documentation
+
+For detailed information about the enhanced UI features:
+- **Complete Guide**: See `PHASE7_ENHANCED_UI_UX.md`
+- **Quick Reference**: See `PHASE7_QUICK_REFERENCE.md`
+- **Summary**: See `PHASE7_SUMMARY.md`
 
 ## Troubleshooting
 

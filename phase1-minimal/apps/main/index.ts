@@ -320,7 +320,8 @@ ipcMain.handle('chat:send-message', async (event, message: string) => {
       provider = 'openai';
       userMessage = message.slice(5);
     } else {
-      provider = 'ollama';
+      // Default to Claude (which supports tools)
+      provider = 'claude';
       userMessage = message;
     }
 
@@ -333,14 +334,23 @@ ipcMain.handle('chat:send-message', async (event, message: string) => {
       console.log(`[DEBUG] Available tools:`, availableTools.map(t => t.name));
       const toolList = availableTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n');
       
-      const systemPrompt = `You are a helpful AI assistant with access to various tools. Use them when appropriate to help the user.
+      const systemPrompt = `You are a helpful AI assistant with access to various tools. You MUST use these tools to perform actions - you cannot do things directly.
 
 Available Tools:
 ${toolList}
 
-When the user asks "what tools do you have" or similar questions, list these specific tools above, not generic capabilities.
-When asked about weather, use the get_weather tool. When asked about GitHub, use the GitHub tools.
-When asked about system information or file operations, use the localops MCP tools.`;
+IMPORTANT INSTRUCTIONS:
+- When the user asks to open a website or browser (e.g., "open google.com"), use the browser_launch tool first, then browser_navigate
+- browser_navigate has a default timeout of 120 seconds (2 minutes) and uses 'load' as waitUntil condition
+- For slow-loading sites, you can increase the timeout parameter or use 'domcontentloaded' for faster loading
+- When asked about weather, use the get_weather tool
+- When asked about GitHub, use the GitHub tools (search_repos, create_issue, list_prs)
+- For file operations, use file_read, file_write, file_append, or file_list tools
+- For system commands, use shell_execute tool
+- When asked about system information, use the localops MCP tools
+- When asked "what tools do you have", list the specific tools above, not generic capabilities
+
+YOU MUST USE TOOLS - Do not say you cannot do something if there is a tool available for it!`;
       
       const result = await executeWithTools(llmProvider, userMessage, {
         maxIterations: 5,
@@ -406,12 +416,23 @@ ipcMain.handle('execute-with-tools', async (event, request: {
     // Build system prompt with context
     const contextInfo = workingMemory.getContext();
     const systemPrompt = request.systemPrompt || 
-      `You are a helpful AI assistant with access to various tools. ${contextInfo ? '\n\n' + contextInfo : ''}
+      `You are a helpful AI assistant with access to various tools. You MUST use these tools to perform actions - you cannot do things directly.${contextInfo ? '\n\n' + contextInfo : ''}
 
 Available Tools:
 ${toolList}
 
-When the user asks "what tools do you have" or similar questions, list these specific tools above, not generic capabilities.`;
+IMPORTANT INSTRUCTIONS:
+- When the user asks to open a website or browser (e.g., "open google.com"), use the browser_launch tool first, then browser_navigate
+- browser_navigate has a default timeout of 120 seconds (2 minutes) and uses 'load' as waitUntil condition
+- For slow-loading sites, you can increase the timeout parameter or use 'domcontentloaded' for faster loading
+- When asked about weather, use the get_weather tool
+- When asked about GitHub, use the GitHub tools (search_repos, create_issue, list_prs)
+- For file operations, use file_read, file_write, file_append, or file_list tools
+- For system commands, use shell_execute tool
+- When asked about system information, use the localops MCP tools
+- When asked "what tools do you have", list the specific tools above, not generic capabilities
+
+YOU MUST USE TOOLS - Do not say you cannot do something if there is a tool available for it!`;
     
     // Execute with tools
     const result = await executeWithTools(provider, request.message, {
@@ -436,6 +457,42 @@ When the user asks "what tools do you have" or similar questions, list these spe
       finalResponse: error instanceof Error ? error.message : 'Unknown error',
       iterations: 0,
       toolCalls: [],
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+});
+
+// Streaming chat handler
+ipcMain.handle('chat:send-message-stream', async (event, request: {
+  provider: string;
+  message: string;
+}) => {
+  try {
+    const llmProvider = getProvider(request.provider) as any;
+    const conversationStore = getGlobalConversationStore();
+    
+    // Check if provider supports streaming
+    if (typeof llmProvider.chatStream !== 'function') {
+      throw new Error(`Provider ${request.provider} does not support streaming`);
+    }
+
+    // Build messages
+    const messages = [
+      { role: 'system', content: 'You are a helpful AI assistant.' },
+      { role: 'user', content: request.message }
+    ];
+
+    // Stream response
+    await llmProvider.chatStream(messages, (chunk: string) => {
+      if (panelWindow && !panelWindow.isDestroyed()) {
+        panelWindow.webContents.send('chat:stream-chunk', chunk);
+      }
+    });
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }

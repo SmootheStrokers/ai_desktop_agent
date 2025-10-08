@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build && concurrently \"npm run build:watch\" \"wait-on dist/renderer/bubble.html dist/renderer/panel.html && electron .\"",
     "build": "npm run build:main && npm run build:preload && npm run build:renderer",
-    "build:main": "esbuild apps/main/index.ts apps/main/llm-providers.ts apps/main/llm-providers-enhanced.ts --bundle --platform=node --target=node18 --outdir=dist/main --external:electron --external:playwright",
+    "build:main": "esbuild apps/main/index.ts apps/main/llm-providers.ts apps/main/llm-providers-enhanced.ts apps/main/mcp/*.ts --bundle --platform=node --target=node18 --outdir=dist/main --external:electron --external:playwright",
     "build:preload": "esbuild apps/preload/index.ts --bundle --platform=node --target=node18 --outfile=dist/preload/index.js --external:electron",
     "build:renderer": "vite build",
     "build:tools": "esbuild apps/main/tools/*.ts --bundle --platform=node --target=node18 --outdir=dist/main/tools --external:electron --external:playwright",

@@ -120,8 +120,8 @@ const ChatPanel: React.FC = () => {
         }
         
         .chat-panel {
-          width: 420px;
-          height: 600px;
+          width: 100%;
+          height: 100vh;
           display: flex;
           flex-direction: column;
           background: linear-gradient(135deg, 
@@ -129,15 +129,15 @@ const ChatPanel: React.FC = () => {
             rgba(248, 250, 252, 0.95) 100%);
           backdrop-filter: blur(20px);
           border: 1px solid rgba(255, 255, 255, 0.2);
-          border-radius: 20px;
-          border-top-left-radius: 24px;
-          border-top-right-radius: 24px;
+          border-radius: 0;
           box-shadow: 
             0 20px 25px -5px rgba(0, 0, 0, 0.1),
             0 10px 10px -5px rgba(0, 0, 0, 0.04),
             inset 0 1px 0 rgba(255, 255, 255, 0.1);
           overflow: hidden;
+          overflow-x: hidden;
           animation: slideIn 0.3s ease-out;
+          box-sizing: border-box;
         }
         
         .chat-header {
@@ -150,6 +150,9 @@ const ChatPanel: React.FC = () => {
           align-items: center;
           justify-content: space-between;
           backdrop-filter: blur(10px);
+          overflow: hidden;
+          max-width: 100%;
+          box-sizing: border-box;
         }
         
         .chat-title {
@@ -237,6 +240,7 @@ const ChatPanel: React.FC = () => {
         .chat-messages {
           flex: 1;
           overflow-y: auto;
+          overflow-x: hidden;
           padding: 20px 24px;
           display: flex;
           flex-direction: column;
@@ -244,6 +248,8 @@ const ChatPanel: React.FC = () => {
           background: linear-gradient(135deg, 
             rgba(248, 250, 252, 0.3) 0%, 
             rgba(241, 245, 249, 0.3) 100%);
+          max-width: 100%;
+          box-sizing: border-box;
         }
         
         .chat-messages::-webkit-scrollbar {
@@ -299,8 +305,11 @@ const ChatPanel: React.FC = () => {
           line-height: 1.6;
           white-space: pre-wrap;
           word-break: break-word;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
           position: relative;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+          box-sizing: border-box;
         }
         
         .message.user {
@@ -367,6 +376,9 @@ const ChatPanel: React.FC = () => {
             rgba(241, 245, 249, 0.8) 100%);
           border-top: 1px solid rgba(226, 232, 240, 0.5);
           backdrop-filter: blur(10px);
+          overflow: hidden;
+          max-width: 100%;
+          box-sizing: border-box;
         }
         
         .chat-input-wrapper {

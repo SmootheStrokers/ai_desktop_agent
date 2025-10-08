@@ -8,6 +8,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Chat API
   sendMessage: (message: string) => ipcRenderer.invoke('chat:send-message', message),
+  sendMessageStream: (request: { provider: string; message: string }) => 
+    ipcRenderer.invoke('chat:send-message-stream', request),
+  onStreamChunk: (callback: (chunk: string) => void) => {
+    ipcRenderer.on('chat:stream-chunk', (event, chunk) => callback(chunk));
+    return () => ipcRenderer.removeAllListeners('chat:stream-chunk');
+  },
+  onToolProgress: (callback: (data: { message: string; iteration: number }) => void) => {
+    ipcRenderer.on('tool-progress', (event, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('tool-progress');
+  },
   onMessage: (callback: (message: string) => void) => {
     ipcRenderer.on('chat:message', (event, message) => callback(message));
   },

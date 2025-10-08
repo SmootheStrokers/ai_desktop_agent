@@ -101,9 +101,9 @@ export async function registerMCPTools(): Promise<void> {
  * Refresh MCP tools registration (call after connecting/disconnecting servers)
  */
 export async function refreshMCPTools(): Promise<void> {
-  // Remove all MCP tools from registry (tools with ':' in name)
+  // Remove all MCP tools from registry (tools with '_' in name indicating MCP format)
   const allTools = toolRegistry.getAll();
-  const mcpTools = allTools.filter(tool => tool.name.includes(':'));
+  const mcpTools = allTools.filter(tool => tool.name.includes('_'));
   
   // Note: The current ToolRegistry doesn't have an unregister method
   // For now, we'll just re-register which will overwrite existing tools
