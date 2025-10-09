@@ -1,7 +1,0 @@
-{
-  "name": "test-plugin",
-  "version": "1.0.0",
-  "description": "A simple test plugin",
-  "author": "Test",
-  "main": "index.js"
-}

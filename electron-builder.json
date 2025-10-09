@@ -10,7 +10,7 @@
   ],
   "win": {
     "target": ["nsis"],
-    "icon": "resources/icons/icon.ico"
+    "icon": "public/favicon100x100.png"
   },
   "nsis": {
     "oneClick": false,
@@ -20,10 +20,10 @@
   },
   "mac": {
     "target": ["dmg"],
-    "icon": "resources/icons/icon.icns"
+    "icon": "public/favicon100x100.png"
   },
   "linux": {
     "target": ["AppImage", "deb"],
-    "icon": "resources/icons/icon.png"
+    "icon": "public/favicon100x100.png"
   }
 }

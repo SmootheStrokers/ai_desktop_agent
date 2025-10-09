@@ -1,91 +1,195 @@
-# Desktop Agent - Phase 1
+# Phase 1 - Minimal AI Desktop Agent
 
-Minimal viable AI desktop agent with Electron + Ollama integration.
+A desktop AI assistant built with Electron, featuring MCP (Model Context Protocol) integration, plugin system, and comprehensive tool support with an enhanced user experience.
 
 ## Features
 
-- **Bubble Window**: 64px circle in bottom-right corner, always on top
-- **Panel Window**: 420x600px chat interface, toggles on bubble click
-- **Ollama Integration**: Connects to localhost:11434 with llama3.1 model
-- **Echo Tool**: Simple tool for testing (`echo hello world`)
-- **Streaming Responses**: Real-time token streaming from Ollama
+### Core Features
+- **Multi-LLM Support**: Claude, OpenAI, and Ollama
+- **MCP Integration**: Connect to external MCP servers for extended functionality
+- **Plugin System**: Load and manage custom plugins
+- **Browser Automation**: Web scraping and automation with Playwright
+- **File Operations**: Read, write, and manage files
+- **System Tools**: Shell execution and clipboard access
+- **Memory Management**: Conversation history and working memory
 
-## Prerequisites
+### ✨ Phase 7: Enhanced UI & UX
+- **Streaming Responses**: Real-time character-by-character AI responses
+- **Visual Tool Feedback**: Beautiful animated tool execution status
+- **Chat History Sidebar**: Searchable conversation history with filters
+- **Enhanced Settings**: Multi-tab settings with theme control
+- **Keyboard Shortcuts**: Power-user navigation (Ctrl+K, Ctrl+H, Ctrl+,)
+- **Notification System**: Elegant toast notifications
+- **Modern UI**: React-based interface with full dark mode support
 
-1. **Ollama installed and running**:
-   ```bash
-   # Install Ollama (if not already installed)
-   curl -fsSL https://ollama.ai/install.sh | sh
-   
-   # Pull the llama3.1 model
-   ollama pull llama3.1
-   
-   # Start Ollama server
-   ollama serve
-   ```
+## Setup
 
-2. **Node.js 18+**
+### Prerequisites
 
-## Quick Start
+- Node.js 18+
+- Python 3.8+ (for MCP servers)
+- npm or yarn
 
+### Installation
+
+1. Clone the repository and navigate to the project:
 ```bash
-# Install dependencies
-npm install
+cd phase1-minimal
+```
 
-# Start development server
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Set up API keys:
+```bash
+cp config.example.json config.json
+# Edit config.json and add your API keys
+```
+
+4. Build the application:
+```bash
+npm run build
+```
+
+5. Run the application:
+```bash
 npm run dev
 ```
+
+## Configuration
+
+### API Keys
+
+Edit `config.json` to add your API keys:
+```json
+{
+  "claudeApiKey": "your-claude-api-key-here",
+  "openaiApiKey": "your-openai-api-key-here"
+}
+```
+
+### MCP Servers
+
+The application comes with two MCP servers:
+
+1. **Local Operations** (`mcp/localops_server.py`): File system and system operations
+2. **Web Search** (`mcp/websearch_server.py`): Web search and URL fetching (mock implementation)
+
+To enable a server, modify the configuration in `apps/main/index.ts`.
 
 ## Usage
 
-1. The bubble appears in the bottom-right corner
-2. Click the bubble to open the chat panel
-3. Type messages to chat with the AI
-4. Try the echo tool: `echo hello world`
-5. Ask questions and get responses from llama3.1
+### Chat Interface
 
-## Project Structure
+- Type messages to interact with the AI assistant
+- Watch responses stream in real-time (Claude & OpenAI)
+- Use `/claude <message>` to force Claude provider
+- Use `/gpt <message>` to force OpenAI provider
+- Default provider can be set in Settings
+
+### Keyboard Shortcuts
+
+- `Ctrl/Cmd + K` - Focus chat input
+- `Ctrl/Cmd + H` - Toggle chat history sidebar
+- `Ctrl/Cmd + ,` - Open settings
+- `Escape` - Close all modals
+- `Enter` - Send message
+- `Shift + Enter` - New line in message
+
+### Tools
+
+The assistant has access to various tools:
+
+- **File Operations**: `read`, `write`, `append`, `list`
+- **Browser Automation**: `browse`, `click`, `screenshot`, `close browser`
+- **System Commands**: `shell <command>`
+- **MCP Tools**: Automatically available from connected servers
+
+### Plugin System
+
+- Click the "Plugins" button to open the plugin marketplace
+- Install, enable, or disable plugins
+- Plugins can provide additional tools and functionality
+
+### Settings & Customization
+
+- Access settings with `Ctrl+,` or the settings button
+- **General**: Choose AI provider, configure notifications
+- **Appearance**: Select theme (Light/Dark/System)
+- **MCP Servers**: Manage MCP connections
+- **Advanced**: Configure tool execution parameters
+
+### Chat History
+
+- Access history with `Ctrl+H` or the history button
+- Search through all conversations
+- Filter by role (user/assistant/all)
+- Export conversations to JSON
+- View statistics (messages, tokens)
+
+## Development
+
+### Project Structure
 
 ```
-apps/
-├── main/           # Electron main process
-├── preload/        # Preload scripts for security
-└── renderer/       # React UI components
-    ├── bubble.html # Bubble window
-    ├── panel.html  # Chat panel window
-    └── components/ # React components
+phase1-minimal/
+├── apps/
+│   ├── main/           # Electron main process
+│   ├── preload/        # Preload scripts
+│   └── renderer/       # React UI components
+├── mcp/               # MCP server implementations
+├── plugins/           # Plugin implementations
+└── public/            # Static assets
 ```
 
-## Build
+### Building
 
 ```bash
-# Build all components
+# Development build with watch
+npm run build:watch
+
+# Production build
 npm run build
 
-# Development with watch mode
+# Run in development
 npm run dev
 ```
 
-## Success Criteria ✅
+### Adding New Tools
 
-- [x] `npm install` works
-- [x] `npm run dev` starts the app
-- [x] Bubble appears bottom-right
-- [x] Click bubble opens panel
-- [x] Type "hello" and Ollama responds
-- [x] Echo tool works: `echo hello world`
-- [x] No TypeScript errors
-- [x] No runtime errors in console
-- [x] Under 1000 lines of code
+1. Create a tool definition in `apps/main/tools/`
+2. Register it in `apps/main/tools/index.ts`
+3. The tool will be automatically available to the AI
 
-## What's NOT Included (Phase 2+)
+### Creating Plugins
 
-- OpenAI/Claude fallback
-- Settings UI
-- File/browser/command tools
-- MCP servers
-- Approval flows
-- System tray
-- Global hotkeys
-- Audit logs
-- Multiple LLM providers
+1. Create a plugin directory in `plugins/`
+2. Add a `package.json` with plugin metadata
+3. Implement the plugin interface from `apps/main/plugins/types.ts`
+4. The plugin will be automatically discovered and loaded
+
+## Phase 7 Documentation
+
+For detailed information about the enhanced UI features:
+- **Complete Guide**: See `PHASE7_ENHANCED_UI_UX.md`
+- **Quick Reference**: See `PHASE7_QUICK_REFERENCE.md`
+- **Summary**: See `PHASE7_SUMMARY.md`
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API Key Errors**: Ensure your API keys are correctly set in `config.json`
+2. **MCP Server Connection**: Check that Python is installed and MCP servers are accessible
+3. **Build Errors**: Run `npm install` to ensure all dependencies are installed
+4. **Browser Automation**: Ensure Playwright is properly installed
+
+### Logs
+
+Check the console output for detailed error messages and debugging information.
+
+## License
+
+MIT License - see LICENSE file for details.

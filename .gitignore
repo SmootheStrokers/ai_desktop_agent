@@ -1,6 +1,5 @@
 node_modules/
 dist/
-dist-installer/
 *.log
 .DS_Store
 .env
@@ -8,3 +7,4 @@ dist-installer/
 .env.development.local
 .env.test.local
 .env.production.local
+config.json

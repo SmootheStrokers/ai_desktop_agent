@@ -1,4 +1,0 @@
-This is a test file for the file reading functionality in Phase 2.
-It contains multiple lines of text to verify that the read command works properly.
-The file should be small enough to fit within the 10KB limit.
-This is Phase 2 implementation in the phase1-minimal directory.
