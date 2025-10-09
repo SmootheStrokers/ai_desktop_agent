@@ -276,16 +276,13 @@ const ChatPanelEnhanced: React.FC = () => {
           height: 100vh;
           display: flex;
           flex-direction: column;
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.95) 0%, 
-            rgba(248, 250, 252, 0.95) 100%);
+          background: #000000;
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 0;
           box-shadow: 
-            0 20px 25px -5px rgba(0, 0, 0, 0.1),
-            0 10px 10px -5px rgba(0, 0, 0, 0.04),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            0 20px 25px -5px rgba(0, 0, 0, 0.5),
+            0 10px 10px -5px rgba(0, 0, 0, 0.3);
           overflow: hidden;
           overflow-x: hidden;
           animation: slideIn 0.3s ease-out;
@@ -301,10 +298,8 @@ const ChatPanelEnhanced: React.FC = () => {
         
         .chat-header {
           padding: 20px 24px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.8) 0%, 
-            rgba(241, 245, 249, 0.8) 100%);
-          border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+          background: rgba(0, 0, 0, 0.95);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -331,7 +326,7 @@ const ChatPanelEnhanced: React.FC = () => {
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+          background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -380,12 +375,12 @@ const ChatPanelEnhanced: React.FC = () => {
           align-items: center;
           justify-content: center;
           transition: all 0.2s ease;
-          color: #64748b;
+          color: #94a3b8;
         }
         
         .control-button:hover {
-          background: rgba(59, 130, 246, 0.1);
-          color: #3b82f6;
+          background: rgba(59, 130, 246, 0.2);
+          color: #60a5fa;
           transform: scale(1.05);
         }
         
@@ -426,9 +421,7 @@ const ChatPanelEnhanced: React.FC = () => {
           display: flex;
           flex-direction: column;
           gap: 16px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.3) 0%, 
-            rgba(241, 245, 249, 0.3) 100%);
+          background: #000000;
           max-width: 100%;
           box-sizing: border-box;
         }
@@ -457,15 +450,13 @@ const ChatPanelEnhanced: React.FC = () => {
         
         .welcome-message {
           text-align: center;
-          color: #64748b;
+          color: #cbd5e1;
           font-size: 15px;
           margin-top: 40px;
           padding: 24px;
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.6) 0%, 
-            rgba(248, 250, 252, 0.6) 100%);
+          background: rgba(30, 30, 30, 0.6);
           border-radius: 16px;
-          border: 1px solid rgba(226, 232, 240, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
         }
         
@@ -530,11 +521,9 @@ const ChatPanelEnhanced: React.FC = () => {
         }
         
         .message.assistant {
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.9) 0%, 
-            rgba(248, 250, 252, 0.9) 100%);
-          color: #1e293b;
-          border: 1px solid rgba(226, 232, 240, 0.3);
+          background: rgba(30, 30, 30, 0.9);
+          color: #f1f5f9;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-bottom-left-radius: 6px;
           backdrop-filter: blur(10px);
         }
@@ -561,13 +550,11 @@ const ChatPanelEnhanced: React.FC = () => {
           align-items: center;
           gap: 4px;
           padding: 16px 20px;
-          background: linear-gradient(135deg, 
-            rgba(241, 245, 249, 0.8) 0%, 
-            rgba(226, 232, 240, 0.8) 100%);
-          border: 1px solid rgba(203, 213, 225, 0.3);
+          background: rgba(40, 40, 40, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           border-bottom-left-radius: 6px;
-          color: #64748b;
+          color: #94a3b8;
           font-size: 15px;
           backdrop-filter: blur(10px);
         }
@@ -598,10 +585,8 @@ const ChatPanelEnhanced: React.FC = () => {
         
         .chat-input-container {
           padding: 20px 24px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.8) 0%, 
-            rgba(241, 245, 249, 0.8) 100%);
-          border-top: 1px solid rgba(226, 232, 240, 0.5);
+          background: rgba(0, 0, 0, 0.95);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
           overflow: hidden;
           max-width: 100%;
@@ -624,7 +609,7 @@ const ChatPanelEnhanced: React.FC = () => {
         .chat-input {
           flex: 1;
           padding: 14px 20px;
-          border: 2px solid rgba(226, 232, 240, 0.5);
+          border: 2px solid rgba(255, 255, 255, 0.2);
           border-radius: 24px;
           font-size: 15px;
           font-family: inherit;
@@ -632,16 +617,17 @@ const ChatPanelEnhanced: React.FC = () => {
           outline: none;
           min-height: 24px;
           max-height: 120px;
-          background: rgba(255, 255, 255, 0.8);
+          background: rgba(30, 30, 30, 0.8);
           backdrop-filter: blur(10px);
           transition: all 0.2s ease;
           line-height: 1.5;
+          color: #f1f5f9;
         }
         
         .chat-input:focus {
           border-color: rgba(59, 130, 246, 0.5);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(30, 30, 30, 0.95);
         }
         
         .chat-input.dark {

@@ -1,6 +1,26 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+// Load environment variables from .env.local first
+import { config as dotenvConfig } from 'dotenv';
 import { join } from 'path';
-import { readFileSync, existsSync, statSync, writeFileSync, appendFileSync } from 'fs';
+import { existsSync } from 'fs';
+
+// Load .env.local if it exists (prioritized for local development)
+const envLocalPath = join(__dirname, '../../.env.local');
+if (existsSync(envLocalPath)) {
+  dotenvConfig({ path: envLocalPath });
+  console.log('[ENV] Loaded environment variables from .env.local');
+} else {
+  // Fallback to .env if .env.local doesn't exist
+  const envPath = join(__dirname, '../../.env');
+  if (existsSync(envPath)) {
+    dotenvConfig({ path: envPath });
+    console.log('[ENV] Loaded environment variables from .env');
+  } else {
+    console.warn('[ENV] No .env.local or .env file found. API keys must be set via config.json or environment.');
+  }
+}
+
+import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { readFileSync, statSync, writeFileSync, appendFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { chromium, Browser, Page } from 'playwright';
 import { callOllama, callClaude, callOpenAI, saveApiKey } from './llm-providers';
@@ -15,6 +35,7 @@ import {
   resetGlobalWorkingMemory
 } from './memory';
 import { PluginManager } from './plugins';
+import { conversationalAgent } from './agent/orchestrator';
 
 // Create plugin manager with shared tool registry
 const pluginManager = new PluginManager(toolRegistry);
@@ -37,9 +58,7 @@ function createBubbleWindow() {
     webPreferences: {
       nodeIntegration: false, 
       contextIsolation: true,
-      preload: join(__dirname, '../preload/index.js'),
-      webSecurity: false, // Disable web security for local development
-      allowRunningInsecureContent: false
+      preload: join(__dirname, '../preload/index.js')
     }
   });
   
@@ -69,9 +88,7 @@ function createPanelWindow() {
     webPreferences: {
       nodeIntegration: false, 
       contextIsolation: true,
-      preload: join(__dirname, '../preload/index.js'),
-      webSecurity: false, // Disable web security for local development
-      allowRunningInsecureContent: false
+      preload: join(__dirname, '../preload/index.js')
     }
   });
   
@@ -221,161 +238,21 @@ function shellTool(command: string): string {
   }
 }
 
-// Handle chat messages
+// Handle chat messages with conversational agent
 ipcMain.handle('chat:send-message', async (event, message: string) => {
   try {
-    // Check for API key management
-    if (message.startsWith('setkey ')) {
-      const parts = message.slice(7).split(' ');
-      if (parts.length < 2) {
-        return { type: 'error', result: 'Usage: setkey [claude|openai] [key]' };
-      }
-      const provider = parts[0].toLowerCase();
-      const key = parts.slice(1).join(' ');
-      if (provider !== 'claude' && provider !== 'openai') {
-        return { type: 'error', result: 'Provider must be "claude" or "openai"' };
-      }
-      const result = saveApiKey(provider as 'claude' | 'openai', key);
-      return { type: 'system', result };
-    }
-
-    // Check if it's an echo command
-    if (message.startsWith('echo ')) {
-      const text = message.slice(5);
-      return { type: 'echo', result: echoTool(text) };
-    }
-
-    // Check if it's a read command
-    if (message.startsWith('read ')) {
-      const filePath = message.slice(5).trim();
-      const result = readFileTool(filePath);
-      return { type: 'read', result };
-    }
-
-    // Check if it's a write command
-    if (message.startsWith('write ')) {
-      const parts = message.slice(6).trim().split(' ');
-      if (parts.length < 2) {
-        return { type: 'error', result: 'Error: Usage: write [path] [content]' };
-      }
-      const filePath = parts[0];
-      const content = parts.slice(1).join(' ');
-      const result = writeFileTool(filePath, content);
-      return { type: 'write', result };
-    }
-
-    // Check if it's an append command
-    if (message.startsWith('append ')) {
-      const parts = message.slice(7).trim().split(' ');
-      if (parts.length < 2) {
-        return { type: 'error', result: 'Error: Usage: append [path] [content]' };
-      }
-      const filePath = parts[0];
-      const content = parts.slice(1).join(' ');
-      const result = appendFileTool(filePath, content);
-      return { type: 'append', result };
-    }
-
-    // Check if it's a browse command
-    if (message.startsWith('browse ')) {
-      const url = message.slice(7).trim();
-      const result = await browseTool(url);
-      return { type: 'browser', result };
-    }
-
-    // Check if it's a click command
-    if (message.startsWith('click ')) {
-      const text = message.slice(6).trim();
-      const result = await clickTool(text);
-      return { type: 'browser', result };
-    }
-
-    // Check if it's a screenshot command
-    if (message.toLowerCase() === 'screenshot') {
-      const result = await screenshotTool();
-      return { type: 'browser', result };
-    }
-
-    // Check if it's a close browser command
-    if (message.toLowerCase() === 'close browser' || message.toLowerCase() === 'close') {
-      const result = await closeBrowserTool();
-      return { type: 'browser', result };
-    }
-
-    // Check if it's a shell command
-    if (message.startsWith('shell ')) {
-      const command = message.slice(6).trim();
-      const result = shellTool(command);
-      return { type: 'shell', result };
-    }
-
-    // Use tool-enabled LLM execution
-    let provider;
-    let userMessage = message;
+    // Use the conversational agent
+    const response = await conversationalAgent.handleMessage(message);
     
-    if (message.startsWith('/claude ')) {
-      provider = 'claude';
-      userMessage = message.slice(8);
-    } else if (message.startsWith('/gpt ')) {
-      provider = 'openai';
-      userMessage = message.slice(5);
-    } else {
-      // Default to Claude (which supports tools)
-      provider = 'claude';
-      userMessage = message;
-    }
-
-    try {
-      const llmProvider = getProvider(provider);
-      
-      // Get all available tools
-      const availableTools = toolRegistry.getAll();
-      console.log(`[DEBUG] Available tools count: ${availableTools.length}`);
-      console.log(`[DEBUG] Available tools:`, availableTools.map(t => t.name));
-      const toolList = availableTools.map(tool => `- ${tool.name}: ${tool.description}`).join('\n');
-      
-      const systemPrompt = `You are a helpful AI assistant with access to various tools. You MUST use these tools to perform actions - you cannot do things directly.
-
-Available Tools:
-${toolList}
-
-IMPORTANT INSTRUCTIONS:
-- When the user asks to open a website or browser (e.g., "open google.com"), use the browser_launch tool first, then browser_navigate
-- browser_navigate has a default timeout of 120 seconds (2 minutes) and uses 'load' as waitUntil condition
-- For slow-loading sites, you can increase the timeout parameter or use 'domcontentloaded' for faster loading
-- When asked about weather, use the get_weather tool
-- When asked about GitHub, use the GitHub tools (search_repos, create_issue, list_prs)
-- For file operations, use file_read, file_write, file_append, or file_list tools
-- For system commands, use shell_execute tool
-- When asked about system information, use the localops MCP tools
-- When asked "what tools do you have", list the specific tools above, not generic capabilities
-
-YOU MUST USE TOOLS - Do not say you cannot do something if there is a tool available for it!`;
-      
-      const result = await executeWithTools(llmProvider, userMessage, {
-        maxIterations: 5,
-        systemPrompt
-      });
-
-      if (result.success) {
-        return { type: 'llm', result: result.finalResponse };
-      } else {
-        return { type: 'error', result: result.error || 'Tool execution failed' };
-      }
-    } catch (error) {
-      // Fallback to simple LLM call if tool execution fails
-      let llmResponse = '';
-      if (provider === 'claude') {
-        llmResponse = await callClaude(userMessage);
-      } else if (provider === 'openai') {
-        llmResponse = await callOpenAI(userMessage);
-      } else {
-        llmResponse = await callOllama(userMessage);
-      }
-      return { type: 'llm', result: llmResponse };
-    }
+    return {
+      type: 'success',
+      result: response
+    };
   } catch (error) {
-    return { type: 'error', result: error instanceof Error ? error.message : 'Unknown error' };
+    return {
+      type: 'error',
+      result: `Error: ${(error as Error).message}`
+    };
   }
 });
 
@@ -468,29 +345,20 @@ ipcMain.handle('chat:send-message-stream', async (event, request: {
   message: string;
 }) => {
   try {
-    const llmProvider = getProvider(request.provider) as any;
-    const conversationStore = getGlobalConversationStore();
+    console.log('[IPC] Stream request received, using conversational agent');
     
-    // Check if provider supports streaming
-    if (typeof llmProvider.chatStream !== 'function') {
-      throw new Error(`Provider ${request.provider} does not support streaming`);
+    // Use conversational agent (non-streaming for now)
+    // TODO: Add streaming support to conversational agent
+    const response = await conversationalAgent.handleMessage(request.message);
+    
+    // Send the complete response as a single chunk
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('chat:stream-chunk', response);
     }
-
-    // Build messages
-    const messages = [
-      { role: 'system', content: 'You are a helpful AI assistant.' },
-      { role: 'user', content: request.message }
-    ];
-
-    // Stream response
-    await llmProvider.chatStream(messages, (chunk: string) => {
-      if (panelWindow && !panelWindow.isDestroyed()) {
-        panelWindow.webContents.send('chat:stream-chunk', chunk);
-      }
-    });
 
     return { success: true };
   } catch (error) {
+    console.error('[IPC] Stream error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -758,12 +626,95 @@ app.whenReady().then(async () => {
   // Initialize the plugin system
   await pluginManager.initialize();
   
+  // Setup conversational agent event forwarding
+  conversationalAgent.on('thinking', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:thinking', data);
+    }
+  });
+
+  conversationalAgent.on('intent-detected', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:intent-detected', data);
+    }
+  });
+
+  conversationalAgent.on('plan-created', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:plan-created', data);
+    }
+  });
+
+  conversationalAgent.on('execution:plan-start', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:execution-start', data);
+    }
+  });
+
+  conversationalAgent.on('execution:step-start', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:step-start', data);
+    }
+  });
+
+  conversationalAgent.on('execution:step-complete', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:step-complete', data);
+    }
+  });
+
+  conversationalAgent.on('execution:plan-complete', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:execution-complete', data);
+    }
+  });
+
+  conversationalAgent.on('approval-required', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('agent:approval-required', data);
+    }
+  });
+  
+  // Forward visual build events to renderer
+  conversationalAgent.on('visual-build:progress', (progress) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('visual-build:progress', progress);
+    }
+  });
+
+  conversationalAgent.on('visual-build:complete', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('visual-build:complete', data);
+    }
+  });
+
+  conversationalAgent.on('visual-build:error', (data) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('visual-build:error', data);
+    }
+  });
+  
+  // Forward live code writing events
+  conversationalAgent.on('code-writing-progress', (progress) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('code-writing-progress', progress);
+    }
+  });
+
+  conversationalAgent.on('code-writing-status', (status) => {
+    if (panelWindow && !panelWindow.isDestroyed()) {
+      panelWindow.webContents.send('code-writing-status', status);
+    }
+  });
+  
+  console.log('✓ Conversational AI Agent System initialized');
   console.log('✓ Phase 6: Plugin System initialized');
   console.log('  - Tool execution loop ready');
   console.log('  - Enhanced LLM providers ready');
   console.log('  - Conversation memory ready');
   console.log('  - Working memory ready');
   console.log('  - Plugin manager ready');
+  console.log('  - Conversational agent ready');
   
   // Auto-connect to MCP servers
   console.log('[MCP] Auto-connecting to enabled servers...');

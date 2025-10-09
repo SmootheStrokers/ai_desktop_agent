@@ -4,6 +4,17 @@ A desktop AI assistant built with Electron, featuring MCP (Model Context Protoco
 
 ## Features
 
+### 🚀 NEW: Build Literally Anything!
+- **Dynamic Project Generator**: Ask the AI to build ANY application in natural language
+- **AI-Powered Code Generation**: Generates complete, working code for your ideas
+- **Visual Desktop Integration**: Automatically opens VSCode, browser, and file explorer
+- **Multi-Technology Support**: HTML/CSS/JS, React, Node.js, Python, Electron, and more
+- **Production-Ready Apps**: Beautiful UI, complete functionality, full documentation
+
+**Examples:** "Build me a todo app", "Create a weather dashboard", "Make a typing speed game", "Build a REST API"
+
+👉 **See `BUILD_ANYTHING_QUICK_START.md` for quick examples and `DYNAMIC_PROJECT_BUILDER_GUIDE.md` for the complete guide!**
+
 ### Core Features
 - **Multi-LLM Support**: Claude, OpenAI, and Ollama
 - **MCP Integration**: Connect to external MCP servers for extended functionality
@@ -62,13 +73,25 @@ npm run dev
 
 ### API Keys
 
-Edit `config.json` to add your API keys:
+**Recommended Method (Secure):** Use `.env.local` file:
+
+1. Create `.env.local` in the project root:
+```env
+CLAUDE_API_KEY=your-claude-api-key-here
+OPENAI_API_KEY=your-openai-api-key-here
+```
+
+2. **Automatic Project Integration**: When you build projects through chat, the AI automatically copies your API keys from `.env.local` into the generated project's `.env` file!
+
+**Alternative Method:** Edit `config.json`:
 ```json
 {
   "claudeApiKey": "your-claude-api-key-here",
   "openaiApiKey": "your-openai-api-key-here"
 }
 ```
+
+📖 **See `ENV_LOCAL_SETUP.md` for detailed setup instructions and security best practices.**
 
 ### MCP Servers
 
@@ -80,6 +103,25 @@ The application comes with two MCP servers:
 To enable a server, modify the configuration in `apps/main/index.ts`.
 
 ## Usage
+
+### Building Applications
+
+Simply ask the AI to build anything you want:
+
+```
+"Build me a todo list app"
+"Create a weather dashboard"
+"Make a typing speed game"
+"Build a REST API for managing tasks"
+```
+
+The AI will:
+1. 🧠 Understand your requirements
+2. 💻 Generate complete, working code
+3. 🎨 Create a beautiful UI
+4. 🚀 Set up everything on your desktop (VSCode + Browser)
+
+**All projects are saved to:** `C:\Users\YourName\AI-Projects\[project-name]\`
 
 ### Chat Interface
 

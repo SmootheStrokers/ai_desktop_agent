@@ -54,6 +54,10 @@ export interface ElectronAPI {
     getConnected: () => Promise<{ success: boolean; data?: string[]; error?: string }>;
     isConnected: (serverName: string) => Promise<{ success: boolean; data?: boolean; error?: string }>;
   };
+  
+  // Event listeners
+  on: (channel: string, callback: (...args: any[]) => void) => void;
+  off: (channel: string, callback?: (...args: any[]) => void) => void;
 }
 
 declare global {

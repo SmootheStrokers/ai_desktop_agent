@@ -13,6 +13,12 @@ const ChatPanel: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [currentStatus, setCurrentStatus] = useState('');
+  const [currentPlan, setCurrentPlan] = useState<any>(null);
+  const [executionProgress, setExecutionProgress] = useState<any>(null);
+  const [visualBuildProgress, setVisualBuildProgress] = useState<any>(null);
+  const [liveCodeProgress, setLiveCodeProgress] = useState<any>(null);
+  const [codeWritingStatus, setCodeWritingStatus] = useState<string>('');
   const [showPluginMarketplace, setShowPluginMarketplace] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'general' | 'mcp'>('general');
@@ -29,6 +35,85 @@ const ChatPanel: React.FC = () => {
     mediaQuery.addEventListener('change', handleChange);
     
     return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    // Listen for agent status updates
+    const electronAPI = (window as any).electronAPI;
+    
+    if (electronAPI?.on) {
+      electronAPI.on('agent:thinking', (data: any) => {
+        setCurrentStatus(data.status);
+        setIsThinking(true);
+      });
+
+      electronAPI.on('agent:intent-detected', (data: any) => {
+        setCurrentStatus(`Detected: ${data.intent.description}`);
+      });
+
+      electronAPI.on('agent:plan-created', (data: any) => {
+        setCurrentPlan(data.plan);
+        setCurrentStatus(`Plan created with ${data.plan.steps.length} steps`);
+      });
+
+      electronAPI.on('agent:execution-start', () => {
+        setCurrentStatus('Executing plan...');
+      });
+
+      electronAPI.on('agent:step-start', (data: any) => {
+        setExecutionProgress(data);
+        setCurrentStatus(`Step ${data.stepNumber}/${data.totalSteps}: ${data.step.description}`);
+      });
+
+      electronAPI.on('agent:step-complete', (data: any) => {
+        setExecutionProgress(data);
+      });
+
+      electronAPI.on('agent:execution-complete', (data: any) => {
+        setCurrentStatus('');
+        setCurrentPlan(null);
+        setExecutionProgress(null);
+        setIsThinking(false);
+      });
+      
+      // Visual build listeners
+      electronAPI.on('visual-build:progress', (progress: any) => {
+        setVisualBuildProgress(progress);
+      });
+
+      electronAPI.on('visual-build:complete', (data: any) => {
+        setVisualBuildProgress(null);
+      });
+
+      electronAPI.on('visual-build:error', (data: any) => {
+        setVisualBuildProgress(null);
+        console.error('Build error:', data);
+      });
+      
+      // Live code writing progress
+      electronAPI.on('code-writing-progress', (progress: any) => {
+        setLiveCodeProgress(progress);
+      });
+      
+      electronAPI.on('code-writing-status', (status: any) => {
+        setCodeWritingStatus(status.message);
+      });
+
+      return () => {
+        electronAPI.off('agent:thinking');
+        electronAPI.off('agent:intent-detected');
+        electronAPI.off('agent:plan-created');
+        electronAPI.off('agent:execution-start');
+        electronAPI.off('agent:step-start');
+        electronAPI.off('agent:step-complete');
+        electronAPI.off('agent:execution-complete');
+        electronAPI.off('visual-build:progress');
+        electronAPI.off('visual-build:complete');
+        electronAPI.off('code-writing-progress');
+        electronAPI.off('code-writing-status');
+        electronAPI.off('visual-build:error');
+      };
+    }
   }, []);
 
   const scrollToBottom = () => {
@@ -63,20 +148,14 @@ const ChatPanel: React.FC = () => {
       
       setIsThinking(false);
       
-      if (result.type === 'echo') {
-        addMessage('assistant', result.result);
-      } else if (result.type === 'read') {
-        addMessage('assistant', result.result);
-      } else if (result.type === 'browser') {
-        addMessage('assistant', result.result);
-      } else if (result.type === 'system') {
-        addMessage('assistant', result.result);
-      } else if (result.type === 'llm') {
-        addMessage('assistant', result.result);
-      } else if (result.type === 'ollama') {
+      // Handle both old and new response formats
+      if (result.type === 'success' || result.type === 'llm') {
         addMessage('assistant', result.result);
       } else if (result.type === 'error') {
         addMessage('assistant', `Error: ${result.result}`);
+      } else {
+        // Fallback for other types
+        addMessage('assistant', result.result);
       }
     } catch (error) {
       setIsThinking(false);
@@ -119,21 +198,23 @@ const ChatPanel: React.FC = () => {
           100% { background-position: calc(200px + 100%) 0; }
         }
         
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        
         .chat-panel {
           width: 100%;
           height: 100vh;
           display: flex;
           flex-direction: column;
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.95) 0%, 
-            rgba(248, 250, 252, 0.95) 100%);
+          background: #000000;
           backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 0;
           box-shadow: 
-            0 20px 25px -5px rgba(0, 0, 0, 0.1),
-            0 10px 10px -5px rgba(0, 0, 0, 0.04),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            0 20px 25px -5px rgba(0, 0, 0, 0.5),
+            0 10px 10px -5px rgba(0, 0, 0, 0.3);
           overflow: hidden;
           overflow-x: hidden;
           animation: slideIn 0.3s ease-out;
@@ -142,10 +223,8 @@ const ChatPanel: React.FC = () => {
         
         .chat-header {
           padding: 20px 24px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.8) 0%, 
-            rgba(241, 245, 249, 0.8) 100%);
-          border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+          background: rgba(0, 0, 0, 0.95);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -165,7 +244,7 @@ const ChatPanel: React.FC = () => {
           margin: 0;
           font-size: 18px;
           font-weight: 700;
-          background: linear-gradient(135deg, #1e293b 0%, #475569 100%);
+          background: linear-gradient(135deg, #f1f5f9 0%, #cbd5e1 100%);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
@@ -207,12 +286,12 @@ const ChatPanel: React.FC = () => {
           align-items: center;
           justify-content: center;
           transition: all 0.2s ease;
-          color: #64748b;
+          color: #94a3b8;
         }
         
         .control-button:hover {
-          background: rgba(59, 130, 246, 0.1);
-          color: #3b82f6;
+          background: rgba(59, 130, 246, 0.2);
+          color: #60a5fa;
           transform: scale(1.05);
         }
         
@@ -245,9 +324,7 @@ const ChatPanel: React.FC = () => {
           display: flex;
           flex-direction: column;
           gap: 16px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.3) 0%, 
-            rgba(241, 245, 249, 0.3) 100%);
+          background: #000000;
           max-width: 100%;
           box-sizing: border-box;
         }
@@ -275,15 +352,13 @@ const ChatPanel: React.FC = () => {
         
         .welcome-message {
           text-align: center;
-          color: #64748b;
+          color: #cbd5e1;
           font-size: 15px;
           margin-top: 40px;
           padding: 24px;
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.6) 0%, 
-            rgba(248, 250, 252, 0.6) 100%);
+          background: rgba(30, 30, 30, 0.6);
           border-radius: 16px;
-          border: 1px solid rgba(226, 232, 240, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
         }
         
@@ -319,21 +394,17 @@ const ChatPanel: React.FC = () => {
         }
         
         .message.assistant {
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.9) 0%, 
-            rgba(248, 250, 252, 0.9) 100%);
-          color: #1e293b;
-          border: 1px solid rgba(226, 232, 240, 0.3);
+          background: rgba(30, 30, 30, 0.9);
+          color: #f1f5f9;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-bottom-left-radius: 6px;
           backdrop-filter: blur(10px);
         }
         
         .message.thinking {
-          background: linear-gradient(135deg, 
-            rgba(241, 245, 249, 0.8) 0%, 
-            rgba(226, 232, 240, 0.8) 100%);
-          color: #64748b;
-          border: 1px solid rgba(203, 213, 225, 0.3);
+          background: rgba(40, 40, 40, 0.8);
+          color: #94a3b8;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-bottom-left-radius: 6px;
         }
         
@@ -342,13 +413,11 @@ const ChatPanel: React.FC = () => {
           align-items: center;
           gap: 4px;
           padding: 16px 20px;
-          background: linear-gradient(135deg, 
-            rgba(241, 245, 249, 0.8) 0%, 
-            rgba(226, 232, 240, 0.8) 100%);
-          border: 1px solid rgba(203, 213, 225, 0.3);
+          background: rgba(40, 40, 40, 0.8);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 20px;
           border-bottom-left-radius: 6px;
-          color: #64748b;
+          color: #94a3b8;
           font-size: 15px;
           backdrop-filter: blur(10px);
         }
@@ -371,10 +440,8 @@ const ChatPanel: React.FC = () => {
         
         .chat-input-container {
           padding: 20px 24px;
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.8) 0%, 
-            rgba(241, 245, 249, 0.8) 100%);
-          border-top: 1px solid rgba(226, 232, 240, 0.5);
+          background: rgba(0, 0, 0, 0.95);
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
           overflow: hidden;
           max-width: 100%;
@@ -390,7 +457,7 @@ const ChatPanel: React.FC = () => {
         .chat-input {
           flex: 1;
           padding: 14px 20px;
-          border: 2px solid rgba(226, 232, 240, 0.5);
+          border: 2px solid rgba(255, 255, 255, 0.2);
           border-radius: 24px;
           font-size: 15px;
           font-family: inherit;
@@ -398,20 +465,21 @@ const ChatPanel: React.FC = () => {
           outline: none;
           min-height: 24px;
           max-height: 120px;
-          background: rgba(255, 255, 255, 0.8);
+          background: rgba(30, 30, 30, 0.8);
           backdrop-filter: blur(10px);
           transition: all 0.2s ease;
           line-height: 1.5;
+          color: #f1f5f9;
         }
         
         .chat-input:focus {
           border-color: rgba(59, 130, 246, 0.5);
           box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-          background: rgba(255, 255, 255, 0.95);
+          background: rgba(30, 30, 30, 0.95);
         }
         
         .chat-input::placeholder {
-          color: #94a3b8;
+          color: #64748b;
         }
         
         .send-button {
@@ -458,15 +526,13 @@ const ChatPanel: React.FC = () => {
         }
         
         .modal-content {
-          background: linear-gradient(135deg, 
-            rgba(255, 255, 255, 0.95) 0%, 
-            rgba(248, 250, 252, 0.95) 100%);
+          background: rgba(20, 20, 20, 0.98);
           backdrop-filter: blur(20px);
           border-radius: 20px;
           box-shadow: 
-            0 25px 50px -12px rgba(0, 0, 0, 0.25),
-            inset 0 1px 0 rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.2);
+            0 25px 50px -12px rgba(0, 0, 0, 0.5),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           max-width: 600px;
           width: 90%;
           max-height: 80vh;
@@ -481,10 +547,8 @@ const ChatPanel: React.FC = () => {
           justify-content: space-between;
           align-items: center;
           padding: 24px;
-          border-bottom: 1px solid rgba(226, 232, 240, 0.5);
-          background: linear-gradient(135deg, 
-            rgba(248, 250, 252, 0.8) 0%, 
-            rgba(241, 245, 249, 0.8) 100%);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(30, 30, 30, 0.8);
         }
         
         .modal-title {
@@ -514,9 +578,9 @@ const ChatPanel: React.FC = () => {
         
         .modal-tabs {
           display: flex;
-          border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           padding: 0 24px;
-          background: rgba(248, 250, 252, 0.5);
+          background: rgba(20, 20, 20, 0.5);
         }
         
         .modal-tab {
@@ -527,7 +591,7 @@ const ChatPanel: React.FC = () => {
           font-weight: 600;
           font-size: 15px;
           border-bottom: 3px solid transparent;
-          color: #64748b;
+          color: #94a3b8;
           transition: all 0.2s ease;
         }
         
@@ -537,14 +601,14 @@ const ChatPanel: React.FC = () => {
         }
         
         .modal-tab:hover:not(.active) {
-          color: #475569;
-          background: rgba(59, 130, 246, 0.05);
+          color: #cbd5e1;
+          background: rgba(59, 130, 246, 0.1);
         }
         
         .modal-body {
           flex: 1;
           overflow-y: auto;
-          background: rgba(248, 250, 252, 0.3);
+          background: rgba(10, 10, 10, 0.5);
         }
         
         .modal-body::-webkit-scrollbar {
@@ -771,10 +835,10 @@ const ChatPanel: React.FC = () => {
         <div className={`chat-messages ${isDarkMode ? 'dark' : ''}`}>
         {messages.length === 0 && (
             <div className={`welcome-message ${isDarkMode ? 'dark' : ''}`}>
-              <h4 style={{ margin: '0 0 8px 0', color: isDarkMode ? '#cbd5e1' : '#475569', fontSize: '18px' }}>
+              <h4 style={{ margin: '0 0 8px 0', color: '#cbd5e1', fontSize: '18px' }}>
                 Welcome to AI Assistant
               </h4>
-              <p style={{ margin: 0 }}>
+              <p style={{ margin: 0, color: '#94a3b8' }}>
                 Start a conversation by typing a message below. I'm here to help!
               </p>
           </div>
@@ -788,13 +852,295 @@ const ChatPanel: React.FC = () => {
           </div>
         ))}
 
-        {isThinking && (
-            <div className="message-container">
-              <div className={`typing-indicator ${isDarkMode ? 'dark' : ''}`}>
-                <span>Thinking</span>
-                <div className="typing-dot" />
-                <div className="typing-dot" />
-                <div className="typing-dot" />
+        {isThinking && currentStatus && (
+          <div className="message-container">
+            <div className={`message assistant ${isDarkMode ? 'dark' : ''}`} style={{ maxWidth: '90%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <div style={{ 
+                  width: '16px', 
+                  height: '16px', 
+                  border: '2px solid #3b82f6', 
+                  borderTopColor: 'transparent',
+                  borderRadius: '50%', 
+                  animation: 'spin 0.8s linear infinite' 
+                }} />
+                <span style={{ fontSize: '14px', fontWeight: '600', color: '#3b82f6' }}>
+                  {currentStatus}
+                </span>
+              </div>
+
+              {/* Progress bar */}
+              {executionProgress && (
+                <div style={{ marginTop: '12px' }}>
+                  <div style={{ 
+                    width: '100%', 
+                    height: '8px', 
+                    background: isDarkMode ? 'rgba(71, 85, 105, 0.5)' : 'rgba(226, 232, 240, 0.5)', 
+                    borderRadius: '4px', 
+                    overflow: 'hidden' 
+                  }}>
+                    <div style={{ 
+                      height: '100%', 
+                      background: 'linear-gradient(90deg, #3b82f6 0%, #2563eb 100%)', 
+                      borderRadius: '4px',
+                      width: `${executionProgress.progress || 0}%`,
+                      transition: 'width 0.3s ease'
+                    }} />
+                  </div>
+                  <p style={{ 
+                    marginTop: '6px', 
+                    marginBottom: 0,
+                    fontSize: '12px', 
+                    color: isDarkMode ? '#94a3b8' : '#64748b' 
+                  }}>
+                    Step {executionProgress.stepNumber} of {executionProgress.totalSteps}
+                  </p>
+                </div>
+              )}
+
+              {/* Plan preview */}
+              {currentPlan && (
+                <div style={{ 
+                  marginTop: '12px', 
+                  padding: '12px', 
+                  background: isDarkMode ? 'rgba(51, 65, 85, 0.5)' : 'rgba(241, 245, 249, 0.5)', 
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}>
+                  <p style={{ 
+                    margin: '0 0 8px 0', 
+                    fontWeight: '600', 
+                    color: isDarkMode ? '#cbd5e1' : '#475569' 
+                  }}>
+                    Execution Plan:
+                  </p>
+                  <ul style={{ 
+                    margin: 0, 
+                    paddingLeft: '20px', 
+                    color: isDarkMode ? '#94a3b8' : '#64748b' 
+                  }}>
+                    {currentPlan.steps.slice(0, 3).map((step: any, idx: number) => (
+                      <li key={idx} style={{ marginBottom: '4px' }}>{step.description}</li>
+                    ))}
+                    {currentPlan.steps.length > 3 && (
+                      <li style={{ fontStyle: 'italic' }}>
+                        ...and {currentPlan.steps.length - 3} more steps
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Live Code Writing Progress */}
+        {liveCodeProgress && (
+          <div className="message-container">
+            <div className={`message assistant ${isDarkMode ? 'dark' : ''}`} style={{ maxWidth: '90%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ 
+                  fontSize: '28px',
+                  animation: 'pulse 2s infinite' 
+                }}>
+                  ⌨️
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ 
+                    margin: 0, 
+                    marginBottom: '4px',
+                    fontSize: '16px', 
+                    fontWeight: '600',
+                    background: 'linear-gradient(135deg, #a855f7 0%, #3b82f6 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}>
+                    AI Writing Code Live in VSCode
+                  </p>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: '14px', 
+                    color: isDarkMode ? '#cbd5e1' : '#475569',
+                    fontFamily: 'monospace'
+                  }}>
+                    {liveCodeProgress.file}
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '6px',
+                  fontSize: '12px',
+                  color: isDarkMode ? '#94a3b8' : '#64748b'
+                }}>
+                  <span>Line {liveCodeProgress.linesWritten} / {liveCodeProgress.totalLines}</span>
+                  <span style={{ 
+                    fontWeight: '600', 
+                    color: isDarkMode ? '#a855f7' : '#7c3aed' 
+                  }}>
+                    {liveCodeProgress.percentComplete}%
+                  </span>
+                </div>
+                <div style={{ 
+                  width: '100%', 
+                  height: '8px', 
+                  background: isDarkMode ? 'rgba(139, 92, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)', 
+                  borderRadius: '4px', 
+                  overflow: 'hidden' 
+                }}>
+                  <div style={{ 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #a855f7 0%, #3b82f6 100%)', 
+                    borderRadius: '4px',
+                    width: `${liveCodeProgress.percentComplete}%`,
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+              </div>
+
+              {/* Current line being written */}
+              <div style={{
+                padding: '10px 12px',
+                background: isDarkMode ? 'rgba(139, 92, 246, 0.15)' : 'rgba(168, 85, 247, 0.1)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                color: isDarkMode ? '#cbd5e1' : '#475569',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {liveCodeProgress.currentLine}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Code Writing Status */}
+        {codeWritingStatus && !liveCodeProgress && (
+          <div className="message-container">
+            <div className={`message assistant ${isDarkMode ? 'dark' : ''}`} style={{ maxWidth: '90%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ fontSize: '24px' }}>✨</div>
+                <p style={{ 
+                  margin: 0, 
+                  fontSize: '14px', 
+                  color: isDarkMode ? '#cbd5e1' : '#475569' 
+                }}>
+                  {codeWritingStatus}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Visual Build Progress */}
+        {visualBuildProgress && (
+          <div className="message-container">
+            <div className={`message assistant ${isDarkMode ? 'dark' : ''}`} style={{ maxWidth: '90%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                <div style={{ 
+                  fontSize: '28px',
+                  animation: 'pulse 2s infinite' 
+                }}>
+                  🏗️
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ 
+                    margin: '0 0 4px 0', 
+                    fontWeight: '700', 
+                    fontSize: '16px',
+                    background: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text'
+                  }}>
+                    Building on Your Desktop
+                  </p>
+                  <p style={{ 
+                    margin: 0, 
+                    fontSize: '14px', 
+                    color: isDarkMode ? '#cbd5e1' : '#475569' 
+                  }}>
+                    {visualBuildProgress.currentAction}
+                  </p>
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  width: '100%', 
+                  height: '8px', 
+                  background: isDarkMode ? 'rgba(139, 92, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)', 
+                  borderRadius: '4px', 
+                  overflow: 'hidden' 
+                }}>
+                  <div style={{ 
+                    height: '100%', 
+                    background: 'linear-gradient(90deg, #a855f7 0%, #7c3aed 100%)', 
+                    borderRadius: '4px',
+                    width: `${(visualBuildProgress.completedActions.length / visualBuildProgress.totalActions) * 100}%`,
+                    transition: 'width 0.3s ease'
+                  }} />
+                </div>
+                <p style={{ 
+                  marginTop: '6px', 
+                  marginBottom: 0,
+                  fontSize: '12px', 
+                  color: isDarkMode ? '#94a3b8' : '#64748b' 
+                }}>
+                  Progress: {visualBuildProgress.completedActions.length} / {visualBuildProgress.totalActions}
+                </p>
+              </div>
+
+              {/* Phase indicator */}
+              <div style={{
+                padding: '8px 12px',
+                background: isDarkMode ? 'rgba(139, 92, 246, 0.15)' : 'rgba(168, 85, 247, 0.15)',
+                borderRadius: '6px',
+                fontSize: '12px',
+                marginBottom: '12px'
+              }}>
+                <span style={{ 
+                  fontWeight: '600',
+                  color: '#a855f7',
+                  textTransform: 'capitalize'
+                }}>
+                  Phase: {visualBuildProgress.phase}
+                </span>
+              </div>
+
+              {/* Visible windows */}
+              {visualBuildProgress.visibleWindows.length > 0 && (
+                <div style={{ 
+                  fontSize: '12px', 
+                  color: isDarkMode ? '#94a3b8' : '#64748b',
+                  display: 'flex',
+                  gap: '8px',
+                  flexWrap: 'wrap'
+                }}>
+                  <span style={{ fontWeight: '600' }}>Visible:</span>
+                  {visualBuildProgress.visibleWindows.map((window: string, idx: number) => (
+                    <span 
+                      key={idx}
+                      style={{
+                        padding: '4px 8px',
+                        background: isDarkMode ? 'rgba(100, 116, 139, 0.3)' : 'rgba(203, 213, 225, 0.5)',
+                        borderRadius: '4px'
+                      }}
+                    >
+                      {window}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -863,7 +1209,7 @@ const ChatPanel: React.FC = () => {
                   <h3 style={{ 
                     fontSize: '18px', 
                     fontWeight: '600', 
-                    color: isDarkMode ? '#f1f5f9' : '#1e293b', 
+                    color: '#f1f5f9', 
                     marginTop: 0, 
                     marginBottom: '16px' 
                   }}>
@@ -871,7 +1217,7 @@ const ChatPanel: React.FC = () => {
                   </h3>
                   <p style={{ 
                     fontSize: '15px', 
-                    color: isDarkMode ? '#94a3b8' : '#64748b', 
+                    color: '#94a3b8', 
                     lineHeight: '1.6' 
                   }}>
                     General application settings will be available here.

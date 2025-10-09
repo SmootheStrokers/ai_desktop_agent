@@ -105,5 +105,54 @@ contextBridge.exposeInMainWorld('electronAPI', {
      * Check if a specific server is connected
      */
     isConnected: (serverName: string) => ipcRenderer.invoke('mcp:is-connected', serverName),
+  },
+  
+  // Generic event listeners for visual build and other events
+  on: (channel: string, callback: (...args: any[]) => void) => {
+    const validChannels = [
+      'visual-build:progress',
+      'visual-build:complete',
+      'visual-build:error',
+      'code-writing-progress',
+      'code-writing-status',
+      'agent:thinking',
+      'agent:intent-detected',
+      'agent:plan-created',
+      'agent:execution-start',
+      'agent:step-start',
+      'agent:step-complete',
+      'agent:execution-complete',
+      'agent:approval-required'
+    ];
+    
+    if (validChannels.includes(channel)) {
+      ipcRenderer.on(channel, (event, ...args) => callback(...args));
+    }
+  },
+  
+  off: (channel: string, callback?: (...args: any[]) => void) => {
+    const validChannels = [
+      'visual-build:progress',
+      'visual-build:complete',
+      'visual-build:error',
+      'code-writing-progress',
+      'code-writing-status',
+      'agent:thinking',
+      'agent:intent-detected',
+      'agent:plan-created',
+      'agent:execution-start',
+      'agent:step-start',
+      'agent:step-complete',
+      'agent:execution-complete',
+      'agent:approval-required'
+    ];
+    
+    if (validChannels.includes(channel)) {
+      if (callback) {
+        ipcRenderer.removeListener(channel, callback as any);
+      } else {
+        ipcRenderer.removeAllListeners(channel);
+      }
+    }
   }
 });

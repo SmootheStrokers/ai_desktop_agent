@@ -14,22 +14,45 @@ interface Config {
   openaiApiKey?: string;
 }
 
+// Secure configuration: prioritize environment variables over config.json
 const configPath = join(__dirname, '../../config.json');
 
 function loadConfig(): Config {
-  try {
-    if (existsSync(configPath)) {
-      return JSON.parse(readFileSync(configPath, 'utf-8'));
-    }
-  } catch (error) {
-    console.error('Error loading config:', error);
+  const config: Config = {};
+  
+  // First, try environment variables (most secure)
+  if (process.env.CLAUDE_API_KEY) {
+    config.claudeApiKey = process.env.CLAUDE_API_KEY;
   }
-  return {};
+  if (process.env.OPENAI_API_KEY) {
+    config.openaiApiKey = process.env.OPENAI_API_KEY;
+  }
+  
+  // Fallback to config.json only if env vars not set (for backward compatibility)
+  // WARNING: Storing API keys in config.json is insecure and deprecated
+  if ((!config.claudeApiKey || !config.openaiApiKey) && existsSync(configPath)) {
+    try {
+      const fileConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+      if (!config.claudeApiKey && fileConfig.claudeApiKey) {
+        config.claudeApiKey = fileConfig.claudeApiKey;
+        console.warn('[SECURITY WARNING] Using API key from config.json. Please migrate to environment variables.');
+      }
+      if (!config.openaiApiKey && fileConfig.openaiApiKey) {
+        config.openaiApiKey = fileConfig.openaiApiKey;
+        console.warn('[SECURITY WARNING] Using API key from config.json. Please migrate to environment variables.');
+      }
+    } catch (error) {
+      console.error('Error loading config.json:', error);
+    }
+  }
+  
+  return config;
 }
 
 function saveConfig(config: Config): void {
   try {
     writeFileSync(configPath, JSON.stringify(config, null, 2));
+    console.warn('[SECURITY WARNING] API keys saved to config.json. Consider using environment variables instead.');
   } catch (error) {
     console.error('Error saving config:', error);
   }
@@ -43,7 +66,7 @@ export function saveApiKey(provider: 'claude' | 'openai', key: string): string {
     config.openaiApiKey = key;
   }
   saveConfig(config);
-  return `${provider} API key saved`;
+  return `${provider} API key saved to config.json. SECURITY WARNING: Consider using environment variables instead.`;
 }
 
 /**
